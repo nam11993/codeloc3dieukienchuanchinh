@@ -1,0 +1,382 @@
+[
+  {
+    "code": "VCB",
+    "floor": "HOSE"
+  },
+  {
+    "code": "BID",
+    "floor": "HOSE"
+  },
+  {
+    "code": "CTG",
+    "floor": "HOSE"
+  },
+  {
+    "code": "MBB",
+    "floor": "HOSE"
+  },
+  {
+    "code": "TCB",
+    "floor": "HOSE"
+  },
+  {
+    "code": "VPB",
+    "floor": "HOSE"
+  },
+  {
+    "code": "STB",
+    "floor": "HOSE"
+  },
+  {
+    "code": "VIB",
+    "floor": "HOSE"
+  },
+  {
+    "code": "HDB",
+    "floor": "HOSE"
+  },
+  {
+    "code": "ACB",
+    "floor": "HOSE"
+  },
+  {
+    "code": "MSB",
+    "floor": "UPCOM"
+  },
+  {
+    "code": "LPB",
+    "floor": "UPCOM"
+  },
+  {
+    "code": "SHB",
+    "floor": "HNX"
+  },
+  {
+    "code": "SSI",
+    "floor": "HOSE"
+  },
+  {
+    "code": "VND",
+    "floor": "HOSE"
+  },
+  {
+    "code": "HCM",
+    "floor": "HOSE"
+  },
+  {
+    "code": "FPT",
+    "floor": "HOSE"
+  },
+  {
+    "code": "MWG",
+    "floor": "HOSE"
+  },
+  {
+    "code": "PNJ",
+    "floor": "HOSE"
+  },
+  {
+    "code": "VNM",
+    "floor": "HOSE"
+  },
+  {
+    "code": "MSN",
+    "floor": "HOSE"
+  },
+  {
+    "code": "VJC",
+    "floor": "HOSE"
+  },
+  {
+    "code": "GAS",
+    "floor": "HOSE"
+  },
+  {
+    "code": "PLX",
+    "floor": "HOSE"
+  },
+  {
+    "code": "POW",
+    "floor": "HOSE"
+  },
+  {
+    "code": "GVR",
+    "floor": "HOSE"
+  },
+  {
+    "code": "HPG",
+    "floor": "HOSE"
+  },
+  {
+    "code": "HSG",
+    "floor": "HOSE"
+  },
+  {
+    "code": "NKG",
+    "floor": "HOSE"
+  },
+  {
+    "code": "DCM",
+    "floor": "HOSE"
+  },
+  {
+    "code": "DPM",
+    "floor": "HOSE"
+  },
+  {
+    "code": "DGC",
+    "floor": "HOSE"
+  },
+  {
+    "code": "BMP",
+    "floor": "HOSE"
+  },
+  {
+    "code": "REE",
+    "floor": "HOSE"
+  },
+  {
+    "code": "KBC",
+    "floor": "HOSE"
+  },
+  {
+    "code": "KDH",
+    "floor": "HOSE"
+  },
+  {
+    "code": "NVL",
+    "floor": "HOSE"
+  },
+  {
+    "code": "PDR",
+    "floor": "HOSE"
+  },
+  {
+    "code": "DIG",
+    "floor": "HOSE"
+  },
+  {
+    "code": "DXG",
+    "floor": "HOSE"
+  },
+  {
+    "code": "NLG",
+    "floor": "HOSE"
+  },
+  {
+    "code": "VHM",
+    "floor": "HOSE"
+  },
+  {
+    "code": "VIC",
+    "floor": "HOSE"
+  },
+  {
+    "code": "VRE",
+    "floor": "HOSE"
+  },
+  {
+    "code": "SAB",
+    "floor": "HOSE"
+  },
+  {
+    "code": "BVH",
+    "floor": "HOSE"
+  },
+  {
+    "code": "VPI",
+    "floor": "HOSE"
+  },
+  {
+    "code": "FCN",
+    "floor": "HOSE"
+  },
+  {
+    "code": "GEX",
+    "floor": "HOSE"
+  },
+  {
+    "code": "CTR",
+    "floor": "HOSE"
+  },
+  {
+    "code": "POW",
+    "floor": "HOSE"
+  },
+  {
+    "code": "PVT",
+    "floor": "HOSE"
+  },
+  {
+    "code": "PVD",
+    "floor": "HOSE"
+  },
+  {
+    "code": "HAH",
+    "floor": "HOSE"
+  },
+  {
+    "code": "VOS",
+    "floor": "HOSE"
+  },
+  {
+    "code": "FRT",
+    "floor": "HOSE"
+  },
+  {
+    "code": "DGW",
+    "floor": "HOSE"
+  },
+  {
+    "code": "PET",
+    "floor": "HOSE"
+  },
+  {
+    "code": "CMG",
+    "floor": "HOSE"
+  },
+  {
+    "code": "ELC",
+    "floor": "HOSE"
+  },
+  {
+    "code": "KSB",
+    "floor": "HOSE"
+  },
+  {
+    "code": "AAA",
+    "floor": "HOSE"
+  },
+  {
+    "code": "BCG",
+    "floor": "HOSE"
+  },
+  {
+    "code": "TPB",
+    "floor": "HOSE"
+  },
+  {
+    "code": "OCB",
+    "floor": "HOSE"
+  },
+  {
+    "code": "VTP",
+    "floor": "UPCOM"
+  },
+  {
+    "code": "BSR",
+    "floor": "UPCOM"
+  },
+  {
+    "code": "OIL",
+    "floor": "UPCOM"
+  },
+  {
+    "code": "QNS",
+    "floor": "UPCOM"
+  },
+  {
+    "code": "ACV",
+    "floor": "UPCOM"
+  },
+  {
+    "code": "MML",
+    "floor": "UPCOM"
+  },
+  {
+    "code": "VGI",
+    "floor": "UPCOM"
+  },
+  {
+    "code": "HVN",
+    "floor": "HOSE"
+  },
+  {
+    "code": "VJC",
+    "floor": "HOSE"
+  },
+  {
+    "code": "KHP",
+    "floor": "HOSE"
+  },
+  {
+    "code": "VCG",
+    "floor": "HOSE"
+  },
+  {
+    "code": "CII",
+    "floor": "HOSE"
+  },
+  {
+    "code": "PHR",
+    "floor": "HOSE"
+  },
+  {
+    "code": "HDC",
+    "floor": "HOSE"
+  },
+  {
+    "code": "SZC",
+    "floor": "HOSE"
+  },
+  {
+    "code": "KBC",
+    "floor": "HOSE"
+  },
+  {
+    "code": "GMD",
+    "floor": "HOSE"
+  },
+  {
+    "code": "VPG",
+    "floor": "HOSE"
+  },
+  {
+    "code": "DHA",
+    "floor": "HOSE"
+  },
+  {
+    "code": "HDG",
+    "floor": "HOSE"
+  },
+  {
+    "code": "SCS",
+    "floor": "HOSE"
+  },
+  {
+    "code": "IDC",
+    "floor": "HNX"
+  },
+  {
+    "code": "CEO",
+    "floor": "HNX"
+  },
+  {
+    "code": "PVS",
+    "floor": "HNX"
+  },
+  {
+    "code": "SHS",
+    "floor": "HNX"
+  },
+  {
+    "code": "MBS",
+    "floor": "HNX"
+  },
+  {
+    "code": "TNG",
+    "floor": "HNX"
+  },
+  {
+    "code": "L14",
+    "floor": "HNX"
+  },
+  {
+    "code": "LAS",
+    "floor": "HNX"
+  },
+  {
+    "code": "NRC",
+    "floor": "HNX"
+  }
+]
