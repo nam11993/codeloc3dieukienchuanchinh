@@ -144,6 +144,10 @@ def rsi(close: pd.Series, n: int = 14) -> pd.Series:
     out = 100 - (100 / (1 + rs))
     return out.fillna(0)
 
+def ema(series: pd.Series, n: int) -> pd.Series:
+    """Exponential Moving Average"""
+    return series.ewm(span=n, adjust=False).mean()
+
 # =====================
 # Data fetchers
 # =====================
@@ -338,7 +342,158 @@ def apply_filters(daily: pd.DataFrame) -> Dict[str, bool]:
     }
 
 # =====================
-# Orchestrator
+# Bộ Lọc MUA SỊN (Hoàn toàn mới - độc lập)
+# =====================
+
+def apply_filters_sin(daily: pd.DataFrame) -> Dict[str, bool]:
+    """
+    Bộ lọc MUA SỊN - Logic riêng theo yêu cầu user:
+    
+    Phiên hiện tại:
+    - Giá cao nhất trong phiên >= giá cao nhất 4 phiên trước * 99%
+    - Tại thời điểm quét, giá dương (không âm)
+    
+    Phiên trước:
+    - Nến đỏ (C < O), giảm không quá 2%
+    - Volume < Volume MA20
+    
+    Điều kiện chung:
+    - Nằm trên EMA 34
+    """
+    if len(daily) < 40:  # Cần đủ dữ liệu
+        return {"BuySin": False}
+    
+    C, H, L, O, V = [daily[x] for x in ["C", "H", "L", "O", "V"]]
+    
+    # Tính toán các chỉ báo cần thiết
+    EMA34 = ema(C, 34)
+    VOL_MA20 = sma(V, 20)
+    
+    # === ĐIỀU KIỆN PHIÊN HIỆN TẠI (phiên cuối - index -1) ===
+    # 1. Giá cao nhất hiện tại >= giá cao nhất 4 phiên trước * 99%
+    h_current = H.iloc[-1]  # Giá cao nhất phiên hiện tại
+    h_4_sessions_ago = H.iloc[-5]  # Giá cao nhất 4 phiên trước
+    condition_high = h_current >= (h_4_sessions_ago * 0.99)
+    
+    # 2. Giá hiện tại dương (so với phiên trước)
+    c_current = C.iloc[-1]  # Giá đóng cửa hiện tại
+    c_previous = C.iloc[-2]  # Giá đóng cửa phiên trước
+    condition_positive = c_current > c_previous
+    
+    # === ĐIỀU KIỆN PHIÊN TRƯỚC (index -2) ===
+    # 3. Nến đỏ (C < O) phiên trước
+    c_prev = C.iloc[-2]
+    o_prev = O.iloc[-2] 
+    condition_red_candle = c_prev < o_prev
+    
+    # 4. Giảm không quá 2% phiên trước
+    c_before_prev = C.iloc[-3]  # Giá đóng cửa 2 phiên trước
+    pct_change_prev = (c_prev / c_before_prev - 1) * 100
+    condition_down_max_2pct = -2 <= pct_change_prev < 0
+    
+    # 5. Volume phiên trước < Volume MA20
+    v_prev = V.iloc[-2]
+    vol_ma20_prev = VOL_MA20.iloc[-2]
+    condition_low_volume = v_prev < vol_ma20_prev
+    
+    # === ĐIỀU KIỆN CHUNG ===
+    # 6. Giá hiện tại nằm trên EMA 34
+    ema34_current = EMA34.iloc[-1]
+    condition_above_ema34 = c_current > ema34_current
+    
+    # === KẾT HỢP TẤT CẢ ĐIỀU KIỆN ===
+    mua_sin = bool(
+        condition_high and          # H hiện tại >= H[-4] * 99%
+        condition_positive and      # Giá hiện tại dương
+        condition_red_candle and    # Nến đỏ phiên trước
+        condition_down_max_2pct and # Giảm không quá 2% phiên trước
+        condition_low_volume and    # Volume thấp phiên trước
+        condition_above_ema34       # Nằm trên EMA34
+    )
+    
+    return {
+        "BuySin": mua_sin,
+        # Debug thông tin (có thể bỏ comment để debug)
+        # "debug_high": condition_high,
+        # "debug_positive": condition_positive, 
+        # "debug_red": condition_red_candle,
+        # "debug_down2pct": condition_down_max_2pct,
+        # "debug_lowvol": condition_low_volume,
+        # "debug_ema34": condition_above_ema34,
+    }
+
+def fetch_symbol_bundle_sin(sym: str) -> dict:
+    """Fetch data cho bộ lọc Mua Sịn (tương tự fetch_symbol_bundle)"""
+    now = int(time.time())
+    day_from = int((dt.datetime.utcnow() - dt.timedelta(days=DAILY_LOOKBACK_DAYS+10)).timestamp())
+    
+    # Daily history for indicators
+    daily = dchart_history(sym, "D", day_from, now)
+    if daily.empty or len(daily) < 40:
+        return {"symbol": sym, "error": "no_daily"}
+    
+    # Intraday latest candle for realtime price
+    min_from = int((dt.datetime.utcnow() - dt.timedelta(hours=2)).timestamp())
+    intr = dchart_history(sym, str(INTRADAY_MINUTES), min_from, now)
+    last_price = None
+    if not intr.empty:
+        last_price = float(intr["C"].iloc[-1])
+    else:
+        last_price = float(daily["C"].iloc[-1])
+    
+    # yesterday close for pct change
+    if len(daily) >= 2:
+        prev_close = float(daily["C"].iloc[-2])
+    else:
+        prev_close = float(daily["C"].iloc[-1])
+    pct = None
+    if prev_close and prev_close > 0:
+        pct = (last_price / prev_close - 1.0) * 100.0
+    else:
+        pct = 0.0
+    
+    return {"symbol": sym, "daily": daily, "price": last_price, "pct": pct}
+
+def scan_symbols_sin(symbols: List[str]) -> List[dict]:
+    """Quét thị trường với bộ lọc MUA SỊN"""
+    rows: List[dict] = []
+    try:
+        with futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as ex:
+            future_to_symbol = {ex.submit(fetch_symbol_bundle_sin, symbol): symbol for symbol in symbols}
+            
+            for future in futures.as_completed(future_to_symbol, timeout=30):
+                symbol = future_to_symbol[future]
+                try:
+                    bundle = future.result(timeout=5)
+                    if "error" in bundle:
+                        continue
+                    
+                    # Áp dụng bộ lọc MUA SỊN
+                    signals = apply_filters_sin(bundle["daily"])
+                    
+                    # Chỉ giữ những mã có tín hiệu
+                    if any(signals.values()):
+                        row = {
+                            "symbol": bundle["symbol"],
+                            "price": bundle["price"],
+                            "pct": bundle["pct"],
+                            **signals
+                        }
+                        rows.append(row)
+                        
+                except Exception as e:
+                    print(f"❌ Error processing {symbol}: {e}")
+                    continue
+                    
+    except futures.TimeoutError:
+        print(f"⚠️ Timeout scanning batch")
+    except Exception as e:
+        print(f"❌ Error in scan_symbols_sin: {e}")
+    
+    return rows
+
+# =====================
+# Orchestrator (Bộ lọc gốc)
 # =====================
 
 def scan_symbols(symbols: List[str]) -> List[dict]:
@@ -390,6 +545,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Tạo nút scan cố định
     keyboard = [
         [KeyboardButton("🔍 Quét Tín Hiệu MUA")],
+        [KeyboardButton("🔥 Quét Mua Sịn")],  # Nút mới cho bộ lọc Mua Sịn
         [KeyboardButton("❓ Hướng Dẫn")]
     ]
     reply_markup = ReplyKeyboardMarkup(
@@ -417,19 +573,23 @@ async def handle_button_text(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await update.message.reply_text("⏳ Đang quét toàn bộ mã, vui lòng chờ...")
         await run_scan_send_result(update.message, context)
     
+    elif text == "🔥 Quét Mua Sịn":
+        await update.message.reply_text("🔥 Đang quét với bộ lọc MUA SỊN, vui lòng chờ...")
+        await run_scan_sin_send_result(update.message, context)
+    
     elif text == "❓ Hướng Dẫn":
         await update.message.reply_text(
             "📖 **Hướng dẫn sử dụng Bot**\n\n"
             "🔍 **Nút 'Quét Tín Hiệu MUA':**\n"
-            "• Quét tất cả 95 mã cổ phiếu\n"
+            "• Quét tất cả mã cổ phiếu với bộ lọc gốc\n"
             "• Tìm các mã có tín hiệu mua tích cực\n"
             "• Phân tích dựa trên MA30, RSI14, HHV/LLV\n\n"
-            "⚡ **Tín hiệu 'MUA 1':**\n"
-            "• Giá > MA30 (xu hướng tăng)\n"
-            "• RSI14 trong vùng tích cực\n"
-            "• Đỉnh/đáy thuận lợi\n\n"
+            "🔥 **Nút 'Quét Mua Sịn':**\n"
+            "• Bộ lọc hoàn toàn mới và độc lập\n"
+            "• Logic sẽ được cấu hình riêng biệt\n"
+            "• Tìm kiếm cơ hội đặc biệt\n\n"
             "📊 **Nguồn dữ liệu:** VNDIRECT API\n"
-            "💡 **Nút luôn hiển thị để dễ sử dụng!**",
+            "💡 **Hai nút độc lập để dễ sử dụng!**",
             parse_mode='Markdown'
         )
 
@@ -587,8 +747,8 @@ async def run_scan_send_result(message_source, context: ContextTypes.DEFAULT_TYP
     
     stats_msg = "\n<b>📊 THỐNG KÊ TÍN HIỆU</b>"
     stats_msg += f"\n🚀 Mua Break: <b>{buy_break_count}</b> mã"
-    stats_msg += f"\n📈 Mua Thường: <b>{buy_normal_count}</b> mã" 
-    stats_msg += f"\n📉 Bán: <b>{sell_count}</b> mã"
+    stats_msg += f"\n📈 Mua Thường: <b>{buy_normal_count}</b> mã"
+    stats_msg += f"\n Bán: <b>{sell_count}</b> mã"
     stats_msg += f"\n⚡ Khác: <b>{other_count}</b> mã"
     stats_msg += f"\n🎯 Tổng có tín hiệu: <b>{len(filtered)}</b> mã"
     
@@ -630,6 +790,88 @@ async def run_scan_send_result(message_source, context: ContextTypes.DEFAULT_TYP
         text="✅ Hoàn tất quét."
     )
 
+# Quét với bộ lọc MUA SỊN
+async def run_scan_sin_send_result(message_source, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        syminfo = fetch_all_symbols()
+        symbols = [s.code for s in syminfo]
+    except Exception as e:
+        await message_source.reply_text(f"❌ Lỗi tải danh sách mã: {e}")
+        return
+
+    # Gửi thông báo đang quét
+    await message_source.reply_text(f"🔥 Đang quét {len(symbols)} mã với bộ lọc MUA SỊN… (song song {MAX_WORKERS} luồng)")
+        
+    try:
+        rows = scan_symbols_sin(symbols)
+        if not rows:
+            await message_source.reply_text("⚠️ Quá trình quét bị gián đoạn hoặc không có dữ liệu.")
+            return
+    except KeyboardInterrupt:
+        await message_source.reply_text("⚠️ Quá trình quét bị dừng bởi người dùng.")
+        return
+    except Exception as e:
+        await message_source.reply_text(f"❌ Lỗi khi quét: {e}")
+        return
+
+    # Lọc ra những mã có tín hiệu Mua Sịn
+    filtered = [r for r in rows if r["BuySin"]]
+
+    if not filtered:
+        # Thông báo khi không có tín hiệu
+        total_scanned = len(rows)
+        await message_source.reply_text(
+            f"🔥 <b>KẾT QUẢ QUÉT MUA SỊN</b>\n"
+            f"═══════════════════════════\n\n"
+            f"🔍 Đã quét: <b>{total_scanned}</b> mã cổ phiếu\n"
+            f"❌ Không tìm thấy mã nào có tín hiệu <b>MUA SỊN</b>\n\n"
+            f"💡 <i>Gợi ý: Bộ lọc MUA SỊN hiện chưa được cấu hình điều kiện. "
+            f"Vui lòng cấu hình điều kiện lọc để có kết quả.</i>",
+            parse_mode="HTML"
+        )
+        return
+
+    # Tạo message format cho Mua Sịn
+    def format_price(price):
+        return f"{price:,.1f}"
+    
+    def format_percent(pct):
+        return f"<b>{pct:+.2f}%</b>"
+
+    lines = []
+    lines.append("🔥 <b>KẾT QUẢ QUÉT MUA SỊN</b>")
+    lines.append("═" * 30)
+    lines.append("")
+    
+    # Hiển thị tất cả mã có tín hiệu Mua Sịn
+    for r in filtered:
+        lines.append(f"🔥 <b>{r['symbol']}</b> • {format_price(r['price'])} • {format_percent(r['pct'])}")
+    
+    lines.append("")
+    lines.append(f"📊 <b>THỐNG KÊ</b>")
+    lines.append(f"🔥 Tổng mã Mua Sịn: <b>{len(filtered)}</b>")
+    
+    import datetime
+    current_time = datetime.datetime.now().strftime("%H:%M:%S %d/%m/%Y")
+    lines.append(f"⏰ Quét lúc: <i>{current_time}</i>")
+    lines.append("📝 <i>Chỉ mang tính chất tham khảo</i>")
+
+    msg = "\n".join(lines)
+    
+    # Gửi kết quả
+    chat_id = message_source.chat_id
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=msg,
+        parse_mode="HTML"
+    )
+    
+    # Gửi thông báo hoàn tất
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text="🔥 Hoàn tất quét Mua Sịn."
+    )
+
 if __name__ == "__main__":
     import sys
     import asyncio
@@ -649,6 +891,7 @@ if __name__ == "__main__":
     print("🚀 Bot với Reply Keyboard đã sẵn sàng!")
     print("📱 Tính năng:")
     print("   - Nút '🔍 Quét Tín Hiệu MUA' cố định trên Telegram")
+    print("   - Nút '🔥 Quét Mua Sịn' - Bộ lọc mới độc lập")
     print("   - Nút '❓ Hướng Dẫn' để xem cách sử dụng")
     print("   - Gõ /start để hiển thị keyboard")
     print(">>> Đang khởi động bot...")
