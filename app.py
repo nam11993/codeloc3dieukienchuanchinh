@@ -422,6 +422,129 @@ def apply_filters_sin(daily: pd.DataFrame) -> Dict[str, bool]:
         # "debug_ema34": condition_above_ema34,
     }
 
+# =====================
+# Bộ Lọc MUA SỊN 2 (Hoàn toàn mới - độc lập)
+# =====================
+
+def apply_filters_sin2(daily: pd.DataFrame) -> Dict[str, bool]:
+    """
+    Bộ lọc MUA SỊN 2 - Logic theo yêu cầu user:
+    
+    Phiên hiện tại:
+    - Không thấp hơn 4 phiên trước
+    - Giá hiện tại dương (tăng)
+    - Giá tăng không quá 3%
+    
+    Phiên trước:
+    - Giảm không quá 3%
+    
+    Điều kiện chung:
+    - Giá nằm trên EMA 34 và EMA 89 và MA 50
+    """
+    if len(daily) < 90:  # Cần đủ dữ liệu cho EMA 89
+        return {"BuySin2": False}
+    
+    C, H, L, O, V = [daily[x] for x in ["C", "H", "L", "O", "V"]]
+    
+    # Tính toán các chỉ báo cần thiết
+    EMA34 = ema(C, 34)
+    EMA89 = ema(C, 89)
+    MA50 = sma(C, 50)
+    
+    # === ĐIỀU KIỆN PHIÊN HIỆN TẠI (phiên cuối - index -1) ===
+    c_current = C.iloc[-1]  # Giá đóng cửa hiện tại
+    c_4_sessions_ago = C.iloc[-5]  # Giá đóng cửa 4 phiên trước
+    c_previous = C.iloc[-2]  # Giá đóng cửa phiên trước
+    
+    # 1. Không thấp hơn 4 phiên trước
+    condition_not_lower_than_4sessions = c_current >= c_4_sessions_ago
+    
+    # 2. Giá hiện tại dương (tăng so với phiên trước)
+    condition_positive_current = c_current > c_previous
+    
+    # 3. Giá tăng không quá 3%
+    pct_change_current = (c_current / c_previous - 1) * 100
+    condition_increase_max_3pct = 0 < pct_change_current <= 3
+    
+    # === ĐIỀU KIỆN PHIÊN TRƯỚC (index -2) ===
+    c_prev = C.iloc[-2]
+    c_before_prev = C.iloc[-3]  # Giá đóng cửa 2 phiên trước
+    
+    # 4. Giảm không quá 3% phiên trước
+    pct_change_prev = (c_prev / c_before_prev - 1) * 100
+    condition_decrease_max_3pct = -3 <= pct_change_prev < 0
+    
+    # === ĐIỀU KIỆN CHUNG ===
+    # 7. Giá hiện tại nằm trên EMA 34, EMA 89 và MA 50
+    ema34_current = EMA34.iloc[-1]
+    ema89_current = EMA89.iloc[-1]
+    ma50_current = MA50.iloc[-1]
+    
+    condition_above_ema34 = c_current > ema34_current
+    condition_above_ema89 = c_current > ema89_current
+    condition_above_ma50 = c_current > ma50_current
+    
+    # === KẾT HỢP TẤT CẢ ĐIỀU KIỆN ===
+    mua_sin2 = bool(
+        condition_not_lower_than_4sessions and  # Không thấp hơn 4 phiên trước
+        condition_positive_current and          # Giá hiện tại dương
+        condition_increase_max_3pct and         # Tăng không quá 3%
+        condition_decrease_max_3pct and         # Giảm không quá 3% phiên trước
+        condition_above_ema34 and               # Nằm trên EMA34
+        condition_above_ema89 and               # Nằm trên EMA89
+        condition_above_ma50                    # Nằm trên MA50
+    )
+    
+    return {
+        "BuySin2": mua_sin2,
+        # Debug thông tin (có thể bỏ comment để debug)
+        # "debug_not_lower_4": condition_not_lower_than_4sessions,
+        # "debug_positive": condition_positive_current,
+        # "debug_increase_3pct": condition_increase_max_3pct,
+        # "debug_decrease_3pct": condition_decrease_max_3pct,
+        # "debug_ema34": condition_above_ema34,
+        # "debug_ema89": condition_above_ema89,
+        # "debug_ma50": condition_above_ma50,
+    }
+
+def fetch_symbol_bundle_sin2(sym: str) -> dict:
+    """Fetch data cho bộ lọc Mua Sịn 2 (tương tự fetch_symbol_bundle)"""
+    now = int(time.time())
+    day_from = int((dt.datetime.utcnow() - dt.timedelta(days=DAILY_LOOKBACK_DAYS+10)).timestamp())
+    
+    # Daily history for indicators
+    daily = dchart_history(sym, "D", day_from, now)
+    if daily.empty or len(daily) < 90:  # Cần nhiều data hơn cho EMA 89
+        return {"symbol": sym, "error": "no_daily"}
+    
+    # Intraday latest candle for realtime price
+    min_from = int((dt.datetime.utcnow() - dt.timedelta(hours=2)).timestamp())
+    intr = dchart_history(sym, str(INTRADAY_MINUTES), min_from, now)
+    last_price = None
+    if not intr.empty:
+        last_price = float(intr["C"].iloc[-1])
+    else:
+        last_price = float(daily["C"].iloc[-1])
+    
+    # yesterday close for pct change
+    if len(daily) >= 2:
+        prev_close = float(daily["C"].iloc[-2])
+    else:
+        prev_close = float(daily["C"].iloc[-1])
+    pct = None
+    if prev_close and prev_close > 0:
+        pct = (last_price / prev_close - 1) * 100
+    
+    # Apply filters
+    filters_result = apply_filters_sin2(daily)
+    
+    return {
+        "symbol": sym,
+        "price": last_price,
+        "pct": pct,
+        **filters_result
+    }
+
 def fetch_symbol_bundle_sin(sym: str) -> dict:
     """Fetch data cho bộ lọc Mua Sịn (tương tự fetch_symbol_bundle)"""
     now = int(time.time())
@@ -489,6 +612,41 @@ def scan_symbols_sin(symbols: List[str]) -> List[dict]:
         print(f"⚠️ Timeout scanning batch")
     except Exception as e:
         print(f"❌ Error in scan_symbols_sin: {e}")
+    
+    return rows
+
+def scan_symbols_sin2(symbols: List[str]) -> List[dict]:
+    """Quét thị trường với bộ lọc MUA SỊN 2"""
+    rows: List[dict] = []
+    try:
+        with futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as ex:
+            future_to_symbol = {ex.submit(fetch_symbol_bundle_sin2, symbol): symbol for symbol in symbols}
+            
+            for future in futures.as_completed(future_to_symbol, timeout=30):
+                symbol = future_to_symbol[future]
+                try:
+                    bundle = future.result(timeout=5)
+                    if "error" in bundle:
+                        continue
+                    
+                    # Chỉ giữ những mã có tín hiệu BuySin2
+                    if bundle.get("BuySin2", False):
+                        row = {
+                            "symbol": bundle["symbol"],
+                            "price": bundle["price"],
+                            "pct": bundle["pct"],
+                            "BuySin2": bundle["BuySin2"]
+                        }
+                        rows.append(row)
+                        
+                except Exception as e:
+                    print(f"❌ Error processing {symbol}: {e}")
+                    continue
+                    
+    except futures.TimeoutError:
+        print(f"⚠️ Timeout scanning batch sin2")
+    except Exception as e:
+        print(f"❌ Error in scan_symbols_sin2: {e}")
     
     return rows
 

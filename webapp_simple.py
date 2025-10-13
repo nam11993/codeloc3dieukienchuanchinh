@@ -12,7 +12,7 @@ from datetime import datetime
 # Import từ app.py gốc
 from app import (
     fetch_all_symbols, fetch_symbol_bundle, apply_filters, apply_filters_sin,
-    scan_symbols, scan_symbols_sin
+    scan_symbols, scan_symbols_sin, scan_symbols_sin2
 )
 
 # =====================
@@ -109,6 +109,8 @@ def run_scanner(filter_type):
             results = scan_symbols(symbol_codes)
         elif filter_type == "MUA SỊN":
             results = scan_symbols_sin(symbol_codes)
+        elif filter_type == "MUA SỊN 2":
+            results = scan_symbols_sin2(symbol_codes)
         
         progress_bar.progress(1.0)
         status_text.text(f"✅ Hoàn thành quét {total_symbols} mã")
@@ -138,7 +140,7 @@ def main():
         # Chọn bộ lọc đơn giản
         filter_type = st.selectbox(
             "🎯 Chọn bộ lọc:",
-            ["MUA 1", "MUA SỊN"],
+            ["MUA 1", "MUA SỊN", "MUA SỊN 2"],
             help="Chọn loại bộ lọc để quét tín hiệu"
         )
         
@@ -158,7 +160,7 @@ def main():
             st.markdown("### Điều kiện chung:")
             st.markdown("• 💰 Thanh khoản tốt")
             st.markdown("• 🎯 Breakout logic")
-        else:
+        elif filter_type == "MUA SỊN":
             st.markdown("## 🔴 Bộ lọc MUA SỊN:")
             
             st.markdown("### Phiên hiện tại:")
@@ -172,6 +174,19 @@ def main():
             
             st.markdown("### Điều kiện chung:")
             st.markdown("• Giá nằm trên EMA 34")
+        elif filter_type == "MUA SỊN 2":
+            st.markdown("## 🟡 Bộ lọc MUA SỊN 2:")
+            
+            st.markdown("### Phiên hiện tại:")
+            st.markdown("• Không thấp hơn 4 phiên trước")
+            st.markdown("• Giá hiện tại dương (tăng)")
+            st.markdown("• Giá tăng không quá 3%")
+            
+            st.markdown("### Phiên trước:")
+            st.markdown("• Giảm không quá 3%")
+            
+            st.markdown("### Điều kiện chung:")
+            st.markdown("• Giá nằm trên EMA 34 và EMA 89 và MA 50")
         
         # Button quét
         st.markdown("---")
@@ -219,6 +234,10 @@ def main():
                 mua_sin_count = sum(1 for r in results if isinstance(r, dict) and r.get('BuySin', False))
                 signal_count = mua_sin_count
                 signal_name = "Mua Sịn"
+            elif filter_type == "MUA SỊN 2":
+                mua_sin2_count = sum(1 for r in results if isinstance(r, dict) and r.get('BuySin2', False))
+                signal_count = mua_sin2_count
+                signal_name = "Mua Sịn 2"
             else:
                 buy_break_count = sum(1 for r in results if isinstance(r, dict) and r.get('BuyBreak', False))
                 buy_normal_count = sum(1 for r in results if isinstance(r, dict) and r.get('BuyNormal', False))
@@ -264,6 +283,9 @@ def main():
                     if filter_type == "MUA SỊN":
                         if result.get('BuySin', False):
                             signal_type = "Mua Sịn"
+                    elif filter_type == "MUA SỊN 2":
+                        if result.get('BuySin2', False):
+                            signal_type = "Mua Sịn 2"
                     else:
                         if result.get('BuyBreak', False):
                             signal_type = "Mua Break"

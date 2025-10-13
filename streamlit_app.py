@@ -32,27 +32,19 @@ from app import (import streamlit.components.v1 as components
 
 # Streamlit Config
 
-# =====================# =====================
-
-# Page Configst.set_page_config(
-
-# =====================    page_title="🔥 Stock Scanner VN",
-
-st.set_page_config(    page_icon="📊",
-
-    page_title="Lọc Cổ Phiếu VN",    layout="wide",
-
-    page_icon="📈",    initial_sidebar_state="expanded"
-
-    layout="wide",)
-
+# =====================
+# Page Config
+# =====================
+st.set_page_config(
+    page_title="Lọc Cổ Phiếu VN",
+    page_icon="📈",
+    layout="wide",
     initial_sidebar_state="expanded"
+)
 
-)# =====================
-
+# =====================
 # Helper Functions
-
-# =====================# =====================
+# =====================
 
 # Custom CSS
 
