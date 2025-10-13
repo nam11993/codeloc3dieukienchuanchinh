@@ -106,10 +106,8 @@ def run_scanner(filter_type):
     
     try:
         if filter_type == "MUA 1":
-            status_text.text("🔍 Đang quét với bộ lọc MUA 1...")
             results = scan_symbols(symbol_codes)
         elif filter_type == "MUA SỊN":
-            status_text.text("🔍 Đang quét với bộ lọc MUA SỊN...")
             results = scan_symbols_sin(symbol_codes)
         
         progress_bar.progress(1.0)
