@@ -12,7 +12,7 @@ from datetime import datetime
 # Import từ app.py gốc
 from app import (
     fetch_all_symbols, fetch_symbol_bundle, apply_filters, apply_filters_sin,
-    scan_symbols, scan_symbols_sin, scan_symbols_sin2
+    scan_symbols, scan_symbols_sin, scan_symbols_sin2, scan_symbols_sin3
 )
 
 # =====================
@@ -111,6 +111,10 @@ def run_scanner(filter_type):
             results = scan_symbols_sin(symbol_codes)
         elif filter_type == "MUA SỊN 2":
             results = scan_symbols_sin2(symbol_codes)
+        elif filter_type == "MUA SỊN 3":
+            results = scan_symbols_sin3(symbol_codes)
+        else:
+            results = []
         
         progress_bar.progress(1.0)
         status_text.text(f"✅ Hoàn thành quét {total_symbols} mã")
@@ -140,7 +144,7 @@ def main():
         # Chọn bộ lọc đơn giản
         filter_type = st.selectbox(
             "🎯 Chọn bộ lọc:",
-            ["MUA 1", "MUA SỊN", "MUA SỊN 2"],
+            ["MUA 1", "MUA SỊN", "MUA SỊN 2", "MUA SỊN 3"],
             help="Chọn loại bộ lọc để quét tín hiệu"
         )
         
@@ -187,6 +191,18 @@ def main():
             
             st.markdown("### Điều kiện chung:")
             st.markdown("• Giá nằm trên EMA 34 và EMA 89 và MA 50")
+        elif filter_type == "MUA SỊN 3":
+            st.markdown("## 🚀 Bộ lọc MUA SỊN 3:")
+            
+            st.markdown("### Phiên hiện tại:")
+            st.markdown("• � Giá dương, tăng không quá 3%")
+            st.markdown("• � Giá không thấp hơn thấp nhất 4 phiên gần nhất")
+            
+            st.markdown("### Phiên trước:")
+            st.markdown("• 📉 Giá giảm không quá 3%, tăng không quá 3%")
+            
+            st.markdown("### Điều kiện chung:")
+            st.markdown("• 📈 Giá nằm trên EMA34, EMA89 và MA50")
         
         # Button quét
         st.markdown("---")
@@ -238,6 +254,10 @@ def main():
                 mua_sin2_count = sum(1 for r in results if isinstance(r, dict) and r.get('BuySin2', False))
                 signal_count = mua_sin2_count
                 signal_name = "Mua Sịn 2"
+            elif filter_type == "MUA SỊN 3":
+                mua_sin3_count = sum(1 for r in results if isinstance(r, dict) and r.get('BuySin3', False))
+                signal_count = mua_sin3_count
+                signal_name = "Mua Sịn 3"
             else:
                 buy_break_count = sum(1 for r in results if isinstance(r, dict) and r.get('BuyBreak', False))
                 buy_normal_count = sum(1 for r in results if isinstance(r, dict) and r.get('BuyNormal', False))
@@ -286,6 +306,9 @@ def main():
                     elif filter_type == "MUA SỊN 2":
                         if result.get('BuySin2', False):
                             signal_type = "Mua Sịn 2"
+                    elif filter_type == "MUA SỊN 3":
+                        if result.get('BuySin3', False):
+                            signal_type = "Mua Sịn 3"
                     else:
                         if result.get('BuyBreak', False):
                             signal_type = "Mua Break"
@@ -305,7 +328,14 @@ def main():
                     symbol = result
                     price = 40.0 + i * 2
                     pct = 1.2 + i * 0.3
-                    signal_type = "Mua Sịn" if filter_type == "MUA SỊN" else "Mua Thường"
+                    if filter_type == "MUA SỊN":
+                        signal_type = "Mua Sịn"
+                    elif filter_type == "MUA SỊN 2":
+                        signal_type = "Mua Sịn 2"  
+                    elif filter_type == "MUA SỊN 3":
+                        signal_type = "Mua Sịn 3"
+                    else:
+                        signal_type = "Mua Thường"
                 
                 df_results.append({
                     'Mã': symbol,
